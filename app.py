@@ -1,6 +1,7 @@
 import os
 import base64
-from flask import Flask, render_template, request, jsonify
+from datetime import datetime, timezone
+from flask import Flask, render_template, request, jsonify, abort
 from dotenv import load_dotenv
 import requests
 
@@ -10,6 +11,26 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB
 
 HF_TOKEN = os.getenv('HF_TOKEN')
+
+# --- LINE Bot Setup ---
+LINE_CHANNEL_ACCESS_TOKEN = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
+LINE_CHANNEL_SECRET = os.getenv('LINE_CHANNEL_SECRET')
+
+line_handler = None
+line_configuration = None
+
+if LINE_CHANNEL_ACCESS_TOKEN and LINE_CHANNEL_SECRET:
+    from linebot.v3 import WebhookHandler
+    from linebot.v3.exceptions import InvalidSignatureError
+    from linebot.v3.messaging import Configuration, ApiClient, MessagingApi
+    from linebot.v3.webhooks import MessageEvent, TextMessageContent
+    from models import SessionLocal, LineMessage, create_tables
+
+    line_configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
+    line_handler = WebhookHandler(LINE_CHANNEL_SECRET)
+
+    create_tables()
+    app.logger.info("LINE Bot initialized")
 HF_API_URL = 'https://router.huggingface.co/v1/chat/completions'
 MODEL_ID = 'moonshotai/Kimi-K2.5'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
@@ -107,6 +128,72 @@ def analyze():
 @app.errorhandler(413)
 def too_large(e):
     return jsonify({'error': '檔案大小超過 10MB 限制'}), 413
+
+
+# --- LINE Webhook ---
+@app.route('/callback', methods=['POST'])
+def line_callback():
+    if not line_handler:
+        return jsonify({'error': 'LINE Bot not configured'}), 503
+
+    signature = request.headers.get('X-Line-Signature', '')
+    body = request.get_data(as_text=True)
+    app.logger.info('Received LINE webhook request')
+
+    try:
+        line_handler.handle(body, signature)
+    except Exception:
+        app.logger.error('Invalid LINE signature')
+        abort(400)
+
+    return 'OK'
+
+
+if line_handler:
+    @line_handler.add(MessageEvent, message=TextMessageContent)
+    def handle_text_message(event):
+        source = event.source
+        group_id = getattr(source, 'group_id', None)
+        user_id = getattr(source, 'user_id', None)
+
+        display_name = ''
+        if user_id:
+            try:
+                with ApiClient(line_configuration) as api_client:
+                    api = MessagingApi(api_client)
+                    if group_id:
+                        profile = api.get_group_member_profile(group_id, user_id)
+                    else:
+                        profile = api.get_profile(user_id)
+                    display_name = profile.display_name
+            except Exception as e:
+                app.logger.warning(f'Failed to get LINE profile: {e}')
+
+        line_ts = datetime.fromtimestamp(event.timestamp / 1000, tz=timezone.utc)
+
+        db = SessionLocal()
+        try:
+            msg = LineMessage(
+                group_id=group_id or '',
+                user_id=user_id or '',
+                display_name=display_name,
+                message_type='text',
+                content=event.message.text,
+                line_timestamp=line_ts,
+            )
+            db.add(msg)
+            db.commit()
+            app.logger.info(f'Saved LINE message from {display_name}: {event.message.text[:50]}')
+        except Exception as e:
+            db.rollback()
+            app.logger.error(f'DB error: {e}')
+        finally:
+            db.close()
+
+
+@app.route('/health', methods=['GET'])
+def health():
+    return {'status': 'ok', 'line_bot': bool(line_handler)}
 
 
 if __name__ == '__main__':
