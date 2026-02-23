@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>兒童健康手冊 - 數位化系統</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/handbook.css') }}">
+</head>
+<body style="font-family:'Inter',sans-serif; background:#FAF8F5; min-height:100vh;">
+    <div class="hb-container">
+        <div class="hb-header">
+            <h1>兒童健康手冊 數位化系統</h1>
+            <div class="hb-nav">
+                <a href="/handbook" class="active">儀表板</a>
+                <a href="/handbook/scan">開始掃描</a>
+            </div>
+        </div>
+
+        <!-- 搜尋病人 -->
+        <div class="hb-card">
+            <h2>搜尋病人</h2>
+            <div class="hb-search">
+                <input type="text" id="searchInput" class="hb-input" placeholder="輸入姓名或身分證字號...">
+                <button class="hb-btn hb-btn-primary" id="searchBtn">搜尋</button>
+            </div>
+            <div id="searchResults"></div>
+        </div>
+
+        <!-- 快速開始 -->
+        <div class="hb-card" style="text-align:center; padding:2rem;">
+            <div style="font-size:3rem; margin-bottom:0.75rem;">📷</div>
+            <h2 style="border:none; padding:0;">開始掃描手冊</h2>
+            <p style="color:#666; margin-bottom:1.25rem;">拍照或上傳手冊頁面，AI 自動辨識內容</p>
+            <a href="/handbook/scan" class="hb-btn hb-btn-primary" style="display:inline-block; text-decoration:none;">
+                開始新的掃描
+            </a>
+        </div>
+
+        <!-- 最近掃描紀錄 -->
+        <div class="hb-card">
+            <h2>最近掃描紀錄</h2>
+            <div id="recentSessions">
+                <p style="color:#999; text-align:center; padding:1rem;">載入中...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/handbook_dashboard.js') }}"></script>
+</body>
+</html>

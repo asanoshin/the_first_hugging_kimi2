@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>掃描手冊 - 兒童健康手冊數位化</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/handbook.css') }}">
+</head>
+<body style="font-family:'Inter',sans-serif; background:#FAF8F5; min-height:100vh;">
+    <div class="hb-container">
+        <div class="hb-header">
+            <h1>掃描手冊</h1>
+            <div class="hb-nav">
+                <a href="/handbook">儀表板</a>
+                <a href="/handbook/scan" class="active">開始掃描</a>
+            </div>
+        </div>
+
+        <!-- Wizard Steps -->
+        <div class="hb-wizard">
+            <div class="hb-step active" data-step="1">1. 員工登入</div>
+            <div class="hb-step" data-step="2">2. 健保卡</div>
+            <div class="hb-step" data-step="3">3. 掃描頁面</div>
+            <div class="hb-step" data-step="4">4. 完成</div>
+        </div>
+
+        <!-- Step 1: 員工登入 -->
+        <div id="step1" class="hb-card">
+            <h2>員工登入</h2>
+            <div style="margin-bottom:1rem;">
+                <label class="hb-label">員工姓名</label>
+                <input type="text" id="staffName" class="hb-input" placeholder="請輸入您的姓名">
+            </div>
+            <button class="hb-btn hb-btn-primary" id="startSessionBtn">開始掃描工作</button>
+        </div>
+
+        <!-- Step 2: 健保卡辨識 -->
+        <div id="step2" class="hb-card hb-hidden">
+            <h2>拍攝健保卡</h2>
+            <p style="color:#666; margin-bottom:1rem; font-size:0.9rem;">請拍攝或上傳病人的健保卡照片，系統將自動辨識姓名和身分證字號</p>
+
+            <div class="hb-upload-zone" id="insuranceCardZone">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="2" y="3" width="20" height="18" rx="2"/>
+                    <path d="M2 8h20"/>
+                    <path d="M8 13h2M8 16h4"/>
+                </svg>
+                <p>點擊拍照或上傳健保卡</p>
+                <p class="hint">支援 PNG、JPG（最大 10MB）</p>
+            </div>
+            <div class="hb-upload-actions">
+                <button id="icCameraBtn">📷 拍照</button>
+                <button id="icGalleryBtn">🖼 選擇照片</button>
+            </div>
+            <input type="file" id="icFileInput" accept="image/*" hidden>
+            <input type="file" id="icCameraInput" accept="image/*" capture="environment" hidden>
+
+            <div id="icProcessing" class="hb-hidden" style="text-align:center; padding:1.5rem;">
+                <div class="hb-spinner"></div>
+                <p style="margin-top:0.75rem; color:#666;">正在辨識健保卡...</p>
+            </div>
+
+            <div id="icResult" class="hb-hidden">
+                <div id="patientBanner"></div>
+                <div style="margin-top:1rem;">
+                    <label class="hb-label">姓名</label>
+                    <input type="text" id="patientName" class="hb-input" readonly>
+                </div>
+                <div style="margin-top:0.75rem;">
+                    <label class="hb-label">身分證字號</label>
+                    <input type="text" id="patientId" class="hb-input">
+                </div>
+                <div class="hb-btn-group">
+                    <button class="hb-btn hb-btn-primary" id="confirmPatientBtn">確認病人</button>
+                    <button class="hb-btn hb-btn-secondary" id="retakeIcBtn">重新拍攝</button>
+                </div>
+            </div>
+
+            <div style="margin-top:1rem;">
+                <button class="hb-btn hb-btn-secondary" id="skipIcBtn" style="width:100%;">
+                    跳過（手動輸入身分證號）
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 3: 掃描手冊頁面 -->
+        <div id="step3" class="hb-card hb-hidden">
+            <h2>掃描手冊頁面</h2>
+
+            <!-- 病人資訊 -->
+            <div id="step3PatientInfo" class="hb-patient-banner hb-hidden">
+                <span class="icon">👤</span>
+                <div class="info">
+                    <strong id="step3PatientName"></strong>
+                    <span id="step3PatientIdDisplay"></span>
+                </div>
+            </div>
+
+            <p style="color:#666; margin-bottom:1rem; font-size:0.9rem;">
+                可一次選取多張照片批次上傳，系統會逐一處理
+            </p>
+
+            <!-- 上傳區 -->
+            <div class="hb-upload-zone" id="pageUploadZone">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <p>拍照或選取手冊頁面</p>
+                <p class="hint">支援批次上傳多張照片</p>
+            </div>
+            <div class="hb-upload-actions">
+                <button id="pageCameraBtn">📷 拍照</button>
+                <button id="pageGalleryBtn">🖼 選取照片</button>
+            </div>
+            <input type="file" id="pageFileInput" accept="image/*" multiple hidden>
+            <input type="file" id="pageCameraInput" accept="image/*" capture="environment" hidden>
+
+            <!-- 處理進度 -->
+            <div id="ocrProgress" class="hb-hidden" style="margin-top:1.5rem;">
+                <div class="hb-progress-bar">
+                    <div class="hb-progress-fill" id="progressFill" style="width:0%"></div>
+                </div>
+                <p class="hb-progress-text" id="progressText">處理中 0/0...</p>
+            </div>
+
+            <!-- 頁面佇列 -->
+            <div id="pageQueue" class="hb-page-queue" style="margin-top:1rem;"></div>
+
+            <!-- OCR 結果 Review 區 -->
+            <div id="reviewArea" class="hb-hidden" style="margin-top:1.5rem;">
+                <div class="hb-card" style="border:2px solid #1E3A5F20;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h2 id="reviewTitle" style="border:none; padding:0; margin:0;">辨識結果</h2>
+                        <span id="reviewPageType" class="hb-badge hb-badge-info"></span>
+                    </div>
+                    <div id="reviewContent" style="margin-top:1rem;"></div>
+                    <div class="hb-btn-group">
+                        <button class="hb-btn hb-btn-success" id="confirmPageBtn">確認正確</button>
+                        <button class="hb-btn hb-btn-danger" id="rejectPageBtn">重新掃描</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 完成按鈕 -->
+            <div style="margin-top:1.5rem;">
+                <button class="hb-btn hb-btn-primary" id="finishScanBtn" style="width:100%;">完成掃描</button>
+            </div>
+        </div>
+
+        <!-- Step 4: 完成 -->
+        <div id="step4" class="hb-card hb-hidden">
+            <div class="hb-summary">
+                <div class="icon">✅</div>
+                <h2>掃描完成！</h2>
+                <p id="summaryText">已完成手冊掃描</p>
+                <div class="hb-btn-group" style="justify-content:center; margin-top:1.5rem;">
+                    <a href="/handbook/scan" class="hb-btn hb-btn-primary" style="text-decoration:none;">掃描下一位</a>
+                    <a href="/handbook" class="hb-btn hb-btn-secondary" style="text-decoration:none;">回到儀表板</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/handbook_scan.js') }}"></script>
+</body>
+</html>

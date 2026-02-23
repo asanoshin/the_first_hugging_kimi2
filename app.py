@@ -31,6 +31,14 @@ if LINE_CHANNEL_ACCESS_TOKEN and LINE_CHANNEL_SECRET:
 
     create_tables()
     app.logger.info("LINE Bot initialized")
+# --- Handbook Blueprint ---
+from handbook import handbook_bp
+app.register_blueprint(handbook_bp)
+
+# 確保 handbook 相關 tables 也建立
+from models import create_tables as _create_handbook_tables
+_create_handbook_tables()
+
 HF_API_URL = 'https://router.huggingface.co/v1/chat/completions'
 MODEL_ID = 'moonshotai/Kimi-K2.5'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}

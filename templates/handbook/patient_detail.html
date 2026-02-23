@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>病人手冊紀錄 - 兒童健康手冊數位化</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/handbook.css') }}">
+</head>
+<body style="font-family:'Inter',sans-serif; background:#FAF8F5; min-height:100vh;">
+    <div class="hb-container">
+        <div class="hb-header">
+            <h1>病人手冊紀錄</h1>
+            <div class="hb-nav">
+                <a href="/handbook">儀表板</a>
+                <a href="/handbook/scan">開始掃描</a>
+            </div>
+        </div>
+
+        <!-- 病人資訊 -->
+        <div class="hb-card">
+            <h2>病人資訊</h2>
+            <div id="patientInfo" style="padding:0.5rem 0;">
+                <p style="color:#999;">載入中...</p>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="hb-tabs">
+            <button class="hb-tab active" data-tab="parent-records">家長紀錄事項</button>
+            <button class="hb-tab" data-tab="health-education">衛教指導紀錄</button>
+        </div>
+
+        <!-- 家長紀錄 -->
+        <div id="tab-parent-records" class="hb-tab-content active">
+            <div id="parentRecordsList">
+                <p style="color:#999; text-align:center; padding:2rem;">載入中...</p>
+            </div>
+        </div>
+
+        <!-- 衛教指導 -->
+        <div id="tab-health-education" class="hb-tab-content">
+            <div id="healthEducationList">
+                <p style="color:#999; text-align:center; padding:2rem;">載入中...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const MPERSONID = '{{ mpersonid }}';
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Tab switching
+        document.querySelectorAll('.hb-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.hb-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.hb-tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        loadPatientRecords();
+    });
+
+    const AGE_STAGES = {
+        1: '出生至二個月', 2: '二至四個月', 3: '四至十個月',
+        4: '十個月至一歲半', 5: '一歲半至二歲', 6: '二至三歲', 7: '三至未滿七歲'
+    };
+
+    async function loadPatientRecords() {
+        try {
+            const res = await fetch(`/handbook/patients/${MPERSONID}/records`);
+            const data = await res.json();
+
+            // 病人資訊
+            const pi = document.getElementById('patientInfo');
+            if (data.patient && data.patient.found) {
+                const p = data.patient;
+                pi.innerHTML = `
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+                        <div><strong>姓名：</strong>${esc(p.name)}</div>
+                        <div><strong>身分證號：</strong>${esc(p.mpersonid)}</div>
+                        <div><strong>性別：</strong>${p.sex === 'M' ? '男' : p.sex === 'F' ? '女' : esc(p.sex || '')}</div>
+                        <div><strong>出生日期：</strong>${esc(p.birth_date || '')}</div>
+                    </div>`;
+            } else {
+                pi.innerHTML = '<p style="color:#856404;">系統中無此病人基本資料</p>';
+            }
+
+            // 家長紀錄
+            const prl = document.getElementById('parentRecordsList');
+            if (data.parent_records.length === 0) {
+                prl.innerHTML = '<p style="color:#999; text-align:center; padding:2rem;">尚無家長紀錄</p>';
+            } else {
+                prl.innerHTML = data.parent_records.map(r => `
+                    <div class="hb-card">
+                        <h2>第${r.visit_number}次 - ${esc(r.age_stage || AGE_STAGES[r.visit_number] || '')}</h2>
+                        <div style="font-size:0.85rem; color:#666; margin-bottom:0.75rem;">
+                            填寫日期：${r.record_date || '未記錄'} | 建立時間：${r.created_at ? new Date(r.created_at).toLocaleString('zh-TW') : ''}
+                        </div>
+                        ${renderChecklist(r.checklist_items)}
+                        ${r.parent_notes ? `<div style="margin-top:0.75rem; padding:0.5rem; background:#f8f9fa; border-radius:6px; font-size:0.9rem;"><strong>備註：</strong>${esc(r.parent_notes)}</div>` : ''}
+                    </div>
+                `).join('');
+            }
+
+            // 衛教指導
+            const hel = document.getElementById('healthEducationList');
+            if (data.health_education.length === 0) {
+                hel.innerHTML = '<p style="color:#999; text-align:center; padding:2rem;">尚無衛教指導紀錄</p>';
+            } else {
+                hel.innerHTML = data.health_education.map(e => `
+                    <div class="hb-card">
+                        <h2>第${e.visit_number}次 - ${esc(e.age_stage || AGE_STAGES[e.visit_number] || '')}</h2>
+                        <div style="font-size:0.85rem; color:#666; margin-bottom:0.75rem;">
+                            指導日期：${e.guidance_date || '未記錄'}
+                            ${e.doctor_name ? ` | 醫師：${esc(e.doctor_name)}` : ''}
+                            ${e.hospital_code ? ` | 院所：${esc(e.hospital_code)}` : ''}
+                        </div>
+                        ${renderParentAssessment(e.parent_assessment)}
+                        ${renderDoctorGuidance(e.doctor_guidance)}
+                    </div>
+                `).join('');
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    function renderChecklist(items) {
+        if (!items || !items.length) return '<p style="color:#999;">無資料</p>';
+        return `<ul class="hb-checklist">${items.map(item => `
+            <li>
+                ${item['是警訊'] ? '<span class="warning">※</span>' : ''}
+                <span class="category">${esc(item['類別'] || '')}</span>
+                <span class="question">${esc(item['題目'])}</span>
+                <span class="hb-badge ${item['結果'] === '是' ? 'hb-badge-success' : item['結果'] === '否' ? 'hb-badge-warning' : 'hb-badge-info'}">${esc(item['結果'] || '未勾選')}</span>
+            </li>
+        `).join('')}</ul>`;
+    }
+
+    function renderParentAssessment(items) {
+        if (!items || !items.length) return '';
+        return `
+            <h3 style="font-size:0.9rem; color:#1E3A5F; margin:1rem 0 0.5rem;">家長評估</h3>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+                ${items.map(a => `
+                    <div style="padding:0.4rem 0.75rem; background:#f8f9fa; border-radius:6px; font-size:0.85rem;">
+                        ${esc(a['主題'])}：${a['已做到'] ? '✅ 已做到' : '⬜ 未做到'}
+                    </div>
+                `).join('')}
+            </div>`;
+    }
+
+    function renderDoctorGuidance(groups) {
+        if (!groups || !groups.length) return '';
+        return `
+            <h3 style="font-size:0.9rem; color:#1E3A5F; margin:1rem 0 0.5rem;">醫師指導重點</h3>
+            ${groups.map(g => `
+                <div class="hb-guidance-group">
+                    <h4>${esc(g['主題'])} - ${esc(g['重點'] || '')}</h4>
+                    ${(g['項目'] || []).map(item => `
+                        <div class="hb-guidance-item">
+                            <span>${item['已勾'] ? '☑' : '☐'}</span>
+                            <span>${esc(item['內容'])}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `).join('')}`;
+    }
+
+    function esc(str) {
+        const d = document.createElement('div');
+        d.textContent = str || '';
+        return d.innerHTML;
+    }
+    </script>
+</body>
+</html>
