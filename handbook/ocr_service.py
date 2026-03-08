@@ -140,7 +140,7 @@ def _call_kimi_vision(base64_image, mime_type, prompt):
             }
         ],
         'max_tokens': 4096,
-        'temperature': 0.1
+        'temperature': 1
     }
     headers = {
         'Authorization': f'Bearer {KIMI_API_KEY}',

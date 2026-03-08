@@ -93,7 +93,7 @@ def analyze():
                 }
             ],
             'max_tokens': 2048,
-            'temperature': 0.7
+            'temperature': 1
         }
 
         headers = {
