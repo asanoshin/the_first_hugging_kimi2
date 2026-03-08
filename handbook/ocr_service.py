@@ -4,9 +4,9 @@ import os
 import json
 import requests
 
-HF_TOKEN = os.getenv('HF_TOKEN')
-HF_API_URL = 'https://router.huggingface.co/v1/chat/completions'
-MODEL_ID = 'moonshotai/Kimi-K2.5'
+KIMI_API_KEY = os.getenv('KIMI_API_KEY')
+KIMI_API_URL = 'https://api.moonshot.ai/v1/chat/completions'
+MODEL_ID = 'kimi-k2.5'
 
 # --- Stage 1: 頁面分類 Prompt ---
 CLASSIFY_PROMPT = """你是一位專業的 OCR 辨識系統。請判斷這張圖片是以下哪一種類型：
@@ -143,10 +143,10 @@ def _call_kimi_vision(base64_image, mime_type, prompt):
         'temperature': 0.1
     }
     headers = {
-        'Authorization': f'Bearer {HF_TOKEN}',
+        'Authorization': f'Bearer {KIMI_API_KEY}',
         'Content-Type': 'application/json'
     }
-    response = requests.post(HF_API_URL, json=payload, headers=headers, timeout=120)
+    response = requests.post(KIMI_API_URL, json=payload, headers=headers, timeout=120)
     response.raise_for_status()
     result = response.json()
     return result['choices'][0]['message']['content']
